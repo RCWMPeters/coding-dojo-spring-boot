@@ -1,37 +1,65 @@
 package com.assignment.spring;
 
-import com.assignment.spring.api.WeatherResponse;
+import com.assignment.spring.entity.WeatherEntity;
+import com.assignment.spring.model.WeatherResponse;
+import com.assignment.spring.repository.WeatherRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
-import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 
+@RequestMapping("/weather")
 @RestController
+@Slf4j
 public class WeatherController {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final OpenWeatherMapRestClient openWeatherMapRestClient;
+    private final WeatherRepository weatherRepository;
 
     @Autowired
-    private WeatherRepository weatherRepository;
-
-    @RequestMapping("/weather")
-    public WeatherEntity weather(HttpServletRequest request) {
-        String city = request.getParameter("city");
-        String url = Constants.WEATHER_API_URL.replace("{city}", city).replace("{appid}", Constants.APP_ID);
-        ResponseEntity<WeatherResponse> response = restTemplate.getForEntity(url, WeatherResponse.class);
-        return mapper(response.getBody());
+    public WeatherController(OpenWeatherMapRestClient openWeatherMapRestClient, WeatherRepository weatherRepository) {
+        this.openWeatherMapRestClient = openWeatherMapRestClient;
+        this.weatherRepository = weatherRepository;
     }
 
-    private WeatherEntity mapper(WeatherResponse response) {
-        WeatherEntity entity = new WeatherEntity();
-        entity.setCity(response.getName());
-        entity.setCountry(response.getSys().getCountry());
-        entity.setTemperature(response.getMain().getTemp());
+    @GetMapping("/report/{city}")
+    public WeatherEntity weather(@PathVariable String city) {
+        WeatherEntity weatherEntity;
+        WeatherResponse weatherResponse = openWeatherMapRestClient.getWeather(city);
+        if (weatherResponse != null) {
+            weatherEntity = mapper(weatherResponse, city);
+            weatherEntity = weatherRepository.save(weatherEntity);
+        } else {
+            throw new CityNotFoundException(city);
+        }
+        return weatherEntity;
+    }
 
-        return weatherRepository.save(entity);
+    @GetMapping("/count")
+    public long countAll() {
+        return weatherRepository.count();
+    }
+
+    @GetMapping("/countbycity/{city}")
+    public long countByCity(@PathVariable String city) {
+        return weatherRepository.countByCity(city);
+    }
+
+    @GetMapping("/countbyname/{name}")
+    public long countByName(@PathVariable String name) {
+        return weatherRepository.countByName(name);
+    }
+
+    private static WeatherEntity mapper(WeatherResponse weatherResponse, String city) {
+        WeatherEntity weatherEntity = new WeatherEntity();
+        weatherEntity.setName(weatherResponse.getName());
+        weatherEntity.setWeatherResponse(weatherResponse);
+        weatherEntity.setCity(city);
+        weatherEntity.setTimeOfRequest(LocalDateTime.now());
+        return weatherEntity;
     }
 }
