@@ -1,14 +1,15 @@
-spring.datasource:
-  url: jdbc:postgresql://dbpostgresql:5432/mydb
-  username: postgres
-  password: password
-  hikari:
-    connection-timeout: 60000
-    maximum-pool-size: 5
-
 spring:
+  datasource:
+    hikari:
+      connection-timeout: 60000
+      maximum-pool-size: 5
+    password: password
+    url: jdbc:postgresql://dbpostgresql:5432/mydb
+    username: postgres
   jpa:
-    hibernate.ddl-auto: create
-    properties.javax.persistence.transactionType: RESOURCE_LOCAL
-
-
+    hibernate:
+      ddl-auto: create
+    properties:
+      javax:
+        persistence:
+          transactionType: 'RESOURCE_LOCAL'
